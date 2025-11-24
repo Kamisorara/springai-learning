@@ -7,7 +7,6 @@ import com.example.springaigraphdemo1.graphNode.MarketingCopyNode;
 import com.example.springaigraphdemo1.graphNode.MergeNode;
 import com.example.springaigraphdemo1.graphNode.SpecificationExtractionNode;
 import jakarta.annotation.Resource;
-import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
@@ -26,9 +25,7 @@ public class ProductGraphConfig {
     private MergeNode mergeNode;
 
     @Bean
-    public StateGraph productEnrichmentGraph(ChatClient.Builder chatClientBuilder) throws GraphStateException {
-        ChatClient chatClient = chatClientBuilder.build();
-
+    public StateGraph productEnrichmentGraph() throws GraphStateException {
         // 配置状态键的合并策略
         // 定义各个状态字段的更新策略(这里全部使用替换策略)
         KeyStrategyFactory keyStrategyFactory = new KeyStrategyFactoryBuilder()
