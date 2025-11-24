@@ -1,0 +1,10 @@
+spring:
+  application:
+    name: springai-graph-demo1
+  ai:
+    ollama:
+      base-url: http://localhost:11434
+      chat:
+        model: qwen2.5:0.5b
+  cassandra:
+    port: 8080
