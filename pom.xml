@@ -18,6 +18,7 @@
     <modules>
         <module>springai-demo1</module>
         <module>springai-graph-demo1</module>
+        <module>springai-graph-demo2</module>
     </modules>
 
     <properties>
