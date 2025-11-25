@@ -14,7 +14,6 @@ import org.springframework.ai.content.Media;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.core.io.FileSystemResource;
 import org.springframework.core.io.Resource;
-import org.springframework.core.io.UrlResource;
 import org.springframework.stereotype.Component;
 import org.springframework.util.MimeType;
 import org.springframework.util.MimeTypeUtils;
@@ -64,6 +63,7 @@ public class ImageReviewNode implements NodeAction {
         );
     }
 
+    // 审核单张图片
     private boolean reviewSingleImage(String imageUrl) {
         if (imageUrl == null || imageUrl.isBlank()) {
             return false;
@@ -71,6 +71,7 @@ public class ImageReviewNode implements NodeAction {
         try {
             Resource imageResource = resolveImageResource(imageUrl.trim());
             MimeType mimeType = resolveMimeType(imageUrl);
+            System.out.println("ImageReviewNode 处理的图片 URL: [" + imageUrl + "]");
             System.out.println("图片大小: " + imageResource.contentLength() + " bytes");
             String reviewPrompt = """
                     你是严格的内容安全审核员，请仅返回JSON：
@@ -82,16 +83,22 @@ public class ImageReviewNode implements NodeAction {
                     任一条触发即pass=false并列出violations。禁止添加多余文本。
                     """;
 
+            List<Media> mediaList = List.of(new Media(mimeType, imageResource));
+
             UserMessage message = UserMessage.builder()
                     .text(reviewPrompt)
-                    .media(List.of(new Media(mimeType, imageResource)))
+                    .media(mediaList)
                     .metadata(new HashMap<>())
                     .build();
+
             message.getMetadata().put(DashScopeApiConstants.MESSAGE_FORMAT, "image");
 
-            Prompt prompt = new Prompt(message,
-                    DashScopeChatOptions.builder().withModel("qwen2.5-vl-7b-instruct").withMultiModel(true)
-                            .build());
+            Prompt prompt = new Prompt(
+                    message,
+                    DashScopeChatOptions.builder()
+                            .withModel("qwen-vl-plus")
+                    .withMultiModel(true).build()
+            );
 
             ChatResponse chatResponse = chatClient.prompt(prompt).call().chatResponse();
             String modelOutput = chatResponse.getResult().getOutput().getText();
@@ -103,9 +110,11 @@ public class ImageReviewNode implements NodeAction {
         }
     }
 
+    // 解析图片资源
     private Resource resolveImageResource(String imageUrl) throws Exception {
         if (imageUrl.startsWith("http://") || imageUrl.startsWith("https://")) {
-            return new UrlResource(new URI(imageUrl));
+            Resource imageResource = new org.springframework.core.io.UrlResource(new URI(imageUrl));
+            return imageResource;
         }
         if (imageUrl.startsWith("file:")) {
             return new FileSystemResource(imageUrl.substring(5));
@@ -113,6 +122,7 @@ public class ImageReviewNode implements NodeAction {
         return new ClassPathResource(imageUrl);
     }
 
+    // 根据文件路径后缀解析 MimeType
     private MimeType resolveMimeType(String path) {
         String lower = path.toLowerCase();
         if (lower.endsWith(".png")) {
@@ -125,6 +135,7 @@ public class ImageReviewNode implements NodeAction {
         return MimeTypeUtils.IMAGE_JPEG;
     }
 
+    // 解析模型返回的审核结果
     private boolean parseReviewResult(String modelOutput) throws Exception {
         if (modelOutput == null || modelOutput.isBlank()) {
             return false;
