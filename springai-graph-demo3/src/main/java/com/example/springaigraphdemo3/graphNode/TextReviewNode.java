@@ -52,11 +52,35 @@ public class TextReviewNode implements NodeAction {
             if (output == null || output.isBlank()) {
                 return false;
             }
-            JsonNode root = objectMapper.readTree(output);
+
+            // **关键修复：在解析前清理字符串**
+            String cleanJson = cleanJsonString(output);
+
+            JsonNode root = objectMapper.readTree(cleanJson);
             return root.path("pass").asBoolean(false);
         } catch (Exception ex) {
             System.out.println(ex);
             return false;
         }
+    }
+
+    /**
+     * 清理模型返回的字符串，移除Markdown代码块标记。
+     * @param response 原始响应字符串
+     * @return 清理后的JSON字符串
+     */
+    private String cleanJsonString(String response) {
+        String cleaned = response.trim();
+        if (cleaned.startsWith("```json")) {
+            cleaned = cleaned.substring(7);
+        } else if (cleaned.startsWith("```")) {
+            cleaned = cleaned.substring(3);
+        }
+
+        if (cleaned.endsWith("```")) {
+            cleaned = cleaned.substring(0, cleaned.length() - 3);
+        }
+
+        return cleaned.trim();
     }
 }
