@@ -7,7 +7,7 @@ spring:
 #      chat:
 #        model: qwen2.5:0.5b
       dashscope:
-        api-key: your-api-key-here
+        api-key:
         chat:
           options:
             model: qwen2.5-vl-7b-instruct
