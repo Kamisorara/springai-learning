@@ -96,7 +96,7 @@ public class ImageReviewNode implements NodeAction {
             Prompt prompt = new Prompt(
                     message,
                     DashScopeChatOptions.builder()
-                            .withModel("qwen-vl-plus")
+                            .withModel("qwen2.5-vl-7b-instruct")
                     .withMultiModel(true).build()
             );
 
@@ -124,15 +124,18 @@ public class ImageReviewNode implements NodeAction {
 
     // 根据文件路径后缀解析 MimeType
     private MimeType resolveMimeType(String path) {
-        String lower = path.toLowerCase();
-        if (lower.endsWith(".png")) {
+        String lowerPath = path.toLowerCase();
+        if (lowerPath.endsWith(".png")) {
             return MimeTypeUtils.IMAGE_PNG;
-        } else if (lower.endsWith(".gif")) {
+        } else if (lowerPath.endsWith(".jpg") || lowerPath.endsWith(".jpeg")) {
+            return MimeTypeUtils.IMAGE_JPEG;
+        } else if (lowerPath.endsWith(".gif")) {
             return MimeTypeUtils.IMAGE_GIF;
-        } else if (lower.endsWith(".webp")) {
+        } else if (lowerPath.endsWith(".webp")) {
             return MimeType.valueOf("image/webp");
+        } else {
+            return MimeTypeUtils.IMAGE_JPEG;
         }
-        return MimeTypeUtils.IMAGE_JPEG;
     }
 
     // 解析模型返回的审核结果
