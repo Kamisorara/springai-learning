@@ -13,10 +13,12 @@ import org.springframework.ai.chat.prompt.Prompt;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.core.io.FileSystemResource;
 import org.springframework.core.io.Resource;
+import org.springframework.core.io.ByteArrayResource;
 import org.springframework.stereotype.Component;
 import org.springframework.util.MimeType;
 import org.springframework.util.MimeTypeUtils;
 
+import java.io.InputStream;
 import java.net.URI;
 import java.util.HashMap;
 import java.util.List;
@@ -45,10 +47,24 @@ public class AnimalCountingNode implements NodeAction {
             MimeType mimeType;
 
             if (imageUrl.startsWith("http://") || imageUrl.startsWith("https://")) {
-                imageResource = new org.springframework.core.io.UrlResource(new URI(imageUrl));
+                // 对于 HTTP URL，下载图片内容到内存，避免 URL 特殊字符问题
+                URI uri = new URI(imageUrl);
+                org.springframework.core.io.UrlResource urlResource = new org.springframework.core.io.UrlResource(uri);
+                
+                // 读取图片内容到字节数组
+                byte[] imageBytes;
+                try (InputStream inputStream = urlResource.getInputStream()) {
+                    imageBytes = inputStream.readAllBytes();
+                }
+                
+                // 创建 ByteArrayResource
+                imageResource = new ByteArrayResource(imageBytes);
                 mimeType = getMimeTypeFromPath(imageUrl);
+                System.out.println("从 URL 下载图片到内存，大小: " + imageBytes.length + " bytes");
             } else if (imageUrl.startsWith("file:")) {
-                String localPath = imageUrl.substring(5);
+                String localPath = imageUrl.startsWith("file://") 
+                    ? imageUrl.substring(7) 
+                    : imageUrl.substring(5);
                 imageResource = new FileSystemResource(localPath);
                 mimeType = getMimeTypeFromPath(localPath);
             } else {
@@ -56,11 +72,7 @@ public class AnimalCountingNode implements NodeAction {
                 mimeType = getMimeTypeFromPath(imageUrl);
             }
 
-            if (!imageResource.exists()) {
-                throw new IllegalArgumentException("图片资源不存在: " + imageUrl);
-            }
-
-            System.out.println("图片大小: " + imageResource.contentLength() + " bytes");
+            System.out.println("图片资源准备完成，MimeType: " + mimeType);
 
             String promptText = """
                 请作为专业的图像识别助手,分析这张图片并统计其中的动物数量。

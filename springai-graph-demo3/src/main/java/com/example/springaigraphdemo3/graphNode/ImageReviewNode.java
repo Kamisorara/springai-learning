@@ -14,10 +14,13 @@ import org.springframework.ai.content.Media;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.core.io.FileSystemResource;
 import org.springframework.core.io.Resource;
+import org.springframework.core.io.ByteArrayResource;
 import org.springframework.stereotype.Component;
 import org.springframework.util.MimeType;
 import org.springframework.util.MimeTypeUtils;
 
+import java.io.IOException;
+import java.io.InputStream;
 import java.net.URI;
 import java.util.HashMap;
 import java.util.List;
@@ -63,16 +66,48 @@ public class ImageReviewNode implements NodeAction {
         );
     }
 
-    // 审核单张图片
     private boolean reviewSingleImage(String imageUrl) {
         if (imageUrl == null || imageUrl.isBlank()) {
+            System.err.println("ImageReviewNode: imageUrl 为空");
             return false;
         }
         try {
-            Resource imageResource = resolveImageResource(imageUrl.trim());
-            MimeType mimeType = resolveMimeType(imageUrl);
-            System.out.println("ImageReviewNode 处理的图片 URL: [" + imageUrl + "]");
-            System.out.println("图片大小: " + imageResource.contentLength() + " bytes");
+            String normalizedUrl = imageUrl.trim();
+            System.out.println("ImageReviewNode 开始处理图片 URL: [" + normalizedUrl + "]");
+            System.out.println("URL 长度: " + normalizedUrl.length());
+
+            Resource imageResource;
+            MimeType mimeType;
+
+            if (normalizedUrl.startsWith("http://") || normalizedUrl.startsWith("https://")) {
+                // 对于 HTTP URL，下载图片内容到内存，避免 URL 特殊字符问题
+                URI uri = new URI(normalizedUrl);
+                org.springframework.core.io.UrlResource urlResource = new org.springframework.core.io.UrlResource(uri);
+                
+                // 读取图片内容到字节数组
+                byte[] imageBytes;
+                try (InputStream inputStream = urlResource.getInputStream()) {
+                    imageBytes = inputStream.readAllBytes();
+                }
+                
+                // 创建 ByteArrayResource
+                imageResource = new ByteArrayResource(imageBytes);
+                mimeType = getMimeTypeFromPath(normalizedUrl);
+                System.out.println("从 URL 下载图片到内存，大小: " + imageBytes.length + " bytes");
+            } else if (normalizedUrl.startsWith("file:")) {
+                String localPath = normalizedUrl.startsWith("file://") 
+                    ? normalizedUrl.substring(7) 
+                    : normalizedUrl.substring(5);
+                imageResource = new FileSystemResource(localPath);
+                mimeType = getMimeTypeFromPath(localPath);
+            } else {
+                imageResource = new ClassPathResource(normalizedUrl);
+                mimeType = getMimeTypeFromPath(normalizedUrl);
+            }
+
+            System.out.println("图片资源准备完成");
+            System.out.println("MimeType: " + mimeType);
+
             String reviewPrompt = """
                     你是严格的内容安全审核员，请仅返回JSON：
                     {"pass":true|false,"violations":["NONE"或违规点数组],"confidence":0~1}
@@ -95,35 +130,47 @@ public class ImageReviewNode implements NodeAction {
 
             Prompt prompt = new Prompt(
                     message,
-                    DashScopeChatOptions.builder()
-                            .withModel("qwen2.5-vl-7b-instruct")
-                    .withMultiModel(true).build()
+                    DashScopeChatOptions.builder().withMultiModel(true).build()
             );
 
+            System.out.println("开始调用 DashScope API...");
             ChatResponse chatResponse = chatClient.prompt(prompt).call().chatResponse();
+            System.out.println("DashScope API 调用成功");
             String modelOutput = chatResponse.getResult().getOutput().getText();
 
             return parseReviewResult(modelOutput);
         } catch (Exception ex) {
-            ex.printStackTrace(); // 建议打印完整堆栈信息
+            System.err.println("ImageReviewNode 处理图片失败: " + imageUrl);
+            System.err.println("错误类型: " + ex.getClass().getName());
+            System.err.println("错误信息: " + ex.getMessage());
+            ex.printStackTrace();
             return false;
         }
     }
 
-    // 解析图片资源
-    private Resource resolveImageResource(String imageUrl) throws Exception {
-        if (imageUrl.startsWith("http://") || imageUrl.startsWith("https://")) {
-            Resource imageResource = new org.springframework.core.io.UrlResource(new URI(imageUrl));
-            return imageResource;
+    private boolean parseReviewResult(String modelOutput) throws Exception {
+        if (modelOutput == null || modelOutput.isBlank()) {
+            return false;
         }
-        if (imageUrl.startsWith("file:")) {
-            return new FileSystemResource(imageUrl.substring(5));
-        }
-        return new ClassPathResource(imageUrl);
+        String cleanJson = cleanJsonString(modelOutput);
+        JsonNode root = objectMapper.readTree(cleanJson);
+        return root.path("pass").asBoolean(false);
     }
 
-    // 根据文件路径后缀解析 MimeType
-    private MimeType resolveMimeType(String path) {
+    private String cleanJsonString(String response) {
+        String cleaned = response.trim();
+        if (cleaned.startsWith("```json")) {
+            cleaned = cleaned.substring(7);
+        } else if (cleaned.startsWith("```")) {
+            cleaned = cleaned.substring(3);
+        }
+        if (cleaned.endsWith("```")) {
+            cleaned = cleaned.substring(0, cleaned.length() - 3);
+        }
+        return cleaned.trim();
+    }
+
+    private MimeType getMimeTypeFromPath(String path) {
         String lowerPath = path.toLowerCase();
         if (lowerPath.endsWith(".png")) {
             return MimeTypeUtils.IMAGE_PNG;
@@ -136,36 +183,5 @@ public class ImageReviewNode implements NodeAction {
         } else {
             return MimeTypeUtils.IMAGE_JPEG;
         }
-    }
-
-    // 解析模型返回的审核结果
-    private boolean parseReviewResult(String modelOutput) throws Exception {
-        if (modelOutput == null || modelOutput.isBlank()) {
-            return false;
-        }
-        // **关键修复：在解析前清理字符串**
-        String cleanJson = cleanJsonString(modelOutput);
-        JsonNode root = objectMapper.readTree(cleanJson);
-        return root.path("pass").asBoolean(false);
-    }
-
-    /**
-     * 清理模型返回的字符串，移除Markdown代码块标记。
-     * @param response 原始响应字符串
-     * @return 清理后的JSON字符串
-     */
-    private String cleanJsonString(String response) {
-        String cleaned = response.trim();
-        if (cleaned.startsWith("```json")) {
-            cleaned = cleaned.substring(7);
-        } else if (cleaned.startsWith("```")) {
-            cleaned = cleaned.substring(3);
-        }
-
-        if (cleaned.endsWith("```")) {
-            cleaned = cleaned.substring(0, cleaned.length() - 3);
-        }
-
-        return cleaned.trim();
     }
 }
