@@ -15,6 +15,7 @@ import java.nio.file.Paths;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.ForkJoinPool;
 
 @RestController
 @RequestMapping("/review")
@@ -36,7 +37,11 @@ public class ContentReviewController {
 
     @PostMapping("/content")
     public Map<String, Object> reviewContent(@RequestBody UserUploads userUploads) throws Exception {
-        RunnableConfig runnableConfig = RunnableConfig.builder().build();
+        // 需要运行并行节点，所以要额外在RunnableConfig中指定并行节点的执行器
+        RunnableConfig runnableConfig = RunnableConfig.builder()
+                .addParallelNodeExecutor("imageReview", ForkJoinPool.commonPool())
+                .addParallelNodeExecutor("textReview", ForkJoinPool.commonPool())
+                .build();
 
         Map<String, Object> input = Map.of(
                 "text", userUploads.getText(),
