@@ -2,17 +2,13 @@ spring:
   application:
     name: springai-demo2
   ai:
-    #    ollama:
-    #      base-url: http://localhost:11434
-    #      chat:
-    #        model: qwen2.5:0.5b
     # ?? OpenAI API ???????
     openai:
-      api-key: ${OPENAI_API_KEY:sk-ff26a51b7043407d8d68e49404b15944}
+      api-key: ${OPENAI_API_KEY:your-openai-api-key}  # ??????????API??
       # ??????????????????????base-url
-      base-url: https://dashscope.aliyuncs.com/compatible-mode/v1
+      base-url: https://dashscope.aliyuncs.com/compatible-mode
       chat:
         options:
-          model: qwen-plus  # ?????????
+          model: qwen3-vl-plus  # ?????????
   cassandra:
     port: 8080
