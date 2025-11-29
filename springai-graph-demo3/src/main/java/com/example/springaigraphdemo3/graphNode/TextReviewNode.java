@@ -1,12 +1,10 @@
 package com.example.springaigraphdemo3.graphNode;
 
-import com.alibaba.cloud.ai.dashscope.chat.DashScopeChatOptions;
 import com.alibaba.cloud.ai.graph.OverAllState;
 import com.alibaba.cloud.ai.graph.action.NodeAction;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.ai.chat.client.ChatClient;
-import org.springframework.ai.chat.messages.UserMessage;
 import org.springframework.ai.chat.model.ChatResponse;
 import org.springframework.ai.chat.prompt.Prompt;
 import org.springframework.stereotype.Component;
@@ -42,12 +40,9 @@ public class TextReviewNode implements NodeAction {
                     待审核文本：%s
                     """.formatted(text);
 
-            Prompt prompt = new Prompt(
-                    UserMessage.builder().text(reviewPrompt).build(),
-                    DashScopeChatOptions.builder().build()
-            );
-
-            ChatResponse chatResponse = chatClient.prompt(prompt).call().chatResponse();
+            // 调用 OpenAI API 进行文本审核
+            ChatResponse chatResponse = chatClient.prompt(new Prompt(reviewPrompt)).call().chatResponse();
+//            ChatResponse chatResponse = chatClient.prompt(reviewPrompt).call().chatResponse();
             String output = chatResponse.getResult().getOutput().getText();
             if (output == null || output.isBlank()) {
                 return false;

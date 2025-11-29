@@ -1,7 +1,5 @@
 package com.example.springaigraphdemo3.graphNode;
 
-import com.alibaba.cloud.ai.dashscope.chat.DashScopeChatOptions;
-import com.alibaba.cloud.ai.dashscope.common.DashScopeApiConstants;
 import com.alibaba.cloud.ai.graph.OverAllState;
 import com.alibaba.cloud.ai.graph.action.NodeAction;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -9,7 +7,6 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.ai.chat.messages.UserMessage;
 import org.springframework.ai.chat.model.ChatResponse;
-import org.springframework.ai.chat.prompt.Prompt;
 import org.springframework.ai.content.Media;
 import org.springframework.core.io.ByteArrayResource;
 import org.springframework.core.io.ClassPathResource;
@@ -21,7 +18,6 @@ import org.springframework.util.MimeTypeUtils;
 
 import java.io.InputStream;
 import java.net.URI;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -94,8 +90,8 @@ public class ImageReviewNode implements NodeAction {
                 mimeType = getMimeTypeFromPath(normalizedUrl);
                 System.out.println("从 URL 下载图片到内存，大小: " + imageBytes.length + " bytes");
             } else if (normalizedUrl.startsWith("file:")) {
-                String localPath = normalizedUrl.startsWith("file://") 
-                    ? normalizedUrl.substring(7) 
+                String localPath = normalizedUrl.startsWith("file://")
+                    ? normalizedUrl.substring(7)
                     : normalizedUrl.substring(5);
                 imageResource = new FileSystemResource(localPath);
                 mimeType = getMimeTypeFromPath(localPath);
@@ -117,24 +113,17 @@ public class ImageReviewNode implements NodeAction {
                     任一条触发即pass=false并列出violations。禁止添加多余文本。
                     """;
 
-            List<Media> mediaList = List.of(new Media(mimeType, imageResource));
-
-            UserMessage message = UserMessage.builder()
+            UserMessage userMessage = UserMessage.builder()
                     .text(reviewPrompt)
-                    .media(mediaList)
-                    .metadata(new HashMap<>())
+                    .media(List.of(new Media(mimeType, imageResource)))
                     .build();
 
-            message.getMetadata().put(DashScopeApiConstants.MESSAGE_FORMAT, "image");
-
-            Prompt prompt = new Prompt(
-                    message,
-                    DashScopeChatOptions.builder().withMultiModel(true).build()
-            );
-
-            System.out.println("开始调用 DashScope API...");
-            ChatResponse chatResponse = chatClient.prompt(prompt).call().chatResponse();
-            System.out.println("DashScope API 调用成功");
+            System.out.println("开始调用 OpenAI API...");
+            ChatResponse chatResponse = chatClient.prompt()
+                    .messages(userMessage)
+                    .call()
+                    .chatResponse();
+            System.out.println("OpenAI API 调用成功");
             String modelOutput = chatResponse.getResult().getOutput().getText();
 
             return parseReviewResult(modelOutput);

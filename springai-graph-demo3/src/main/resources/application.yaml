@@ -2,14 +2,13 @@ spring:
   application:
     name: springai-graph-demo3
   ai:
-    #    ollama:
-    #      base-url: http://localhost:11434
-    #      chat:
-    #        model: qwen2.5:0.5b
-    dashscope:
-      api-key:
+    # 兼容 OpenAI API 的服务配置示例
+    openai:
+      api-key: ${OPENAI_API_KEY:your-api-key-here}
+      # 可选：如果使用自定义代理或兼容服务，可以设置base-url
+      base-url: https://dashscope.aliyuncs.com/compatible-mode
       chat:
         options:
-          model: qwen2.5-vl-7b-instruct
+          model: qwen3-vl-plus  # 用于文本处理的模型
   cassandra:
     port: 8080
