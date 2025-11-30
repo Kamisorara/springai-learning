@@ -7,9 +7,9 @@
         <artifactId>springai-learning</artifactId>
         <version>0.0.1-SNAPSHOT</version>
     </parent>
-    <artifactId>springai-demo1</artifactId>
-    <name>springai-demo1</name>
-    <description>springai-demo1</description>
+    <artifactId>springai-graph-demo1</artifactId>
+    <name>springai-graph-demo1</name>
+    <description>springai-graph-demo1</description>
 
     <dependencies>
         <dependency>
