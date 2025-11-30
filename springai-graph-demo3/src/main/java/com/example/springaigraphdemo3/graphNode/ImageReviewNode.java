@@ -2,6 +2,7 @@ package com.example.springaigraphdemo3.graphNode;
 
 import com.alibaba.cloud.ai.graph.OverAllState;
 import com.alibaba.cloud.ai.graph.action.NodeAction;
+import com.example.springaigraphdemo3.util.JsonCleanerUtil;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.ai.chat.client.ChatClient;
@@ -78,21 +79,21 @@ public class ImageReviewNode implements NodeAction {
                 // 对于 HTTP URL，下载图片内容到内存，避免 URL 特殊字符问题
                 URI uri = new URI(normalizedUrl);
                 org.springframework.core.io.UrlResource urlResource = new org.springframework.core.io.UrlResource(uri);
-                
+
                 // 读取图片内容到字节数组
                 byte[] imageBytes;
                 try (InputStream inputStream = urlResource.getInputStream()) {
                     imageBytes = inputStream.readAllBytes();
                 }
-                
+
                 // 创建 ByteArrayResource
                 imageResource = new ByteArrayResource(imageBytes);
                 mimeType = getMimeTypeFromPath(normalizedUrl);
                 System.out.println("从 URL 下载图片到内存，大小: " + imageBytes.length + " bytes");
             } else if (normalizedUrl.startsWith("file:")) {
                 String localPath = normalizedUrl.startsWith("file://")
-                    ? normalizedUrl.substring(7)
-                    : normalizedUrl.substring(5);
+                        ? normalizedUrl.substring(7)
+                        : normalizedUrl.substring(5);
                 imageResource = new FileSystemResource(localPath);
                 mimeType = getMimeTypeFromPath(localPath);
             } else {
@@ -104,13 +105,14 @@ public class ImageReviewNode implements NodeAction {
             System.out.println("MimeType: " + mimeType);
 
             String reviewPrompt = """
-                    你是严格的内容安全审核员，请仅返回JSON：
-                    {"pass":true|false,"violations":["NONE"或违规点数组],"confidence":0~1}
-                    审核标准：
+                    你是严格的内容安全审核员。**必须且仅返回纯JSON,不要添加任何标记、说明或额外文本**。
+                    JSON格式:
+                    {"pass": true/false, "violations": ["类型1", "类型2"]}
+                    审核标准:
                     1. 禁止裸露、性暗示、敏感隐私暴露。
                     2. 禁止血腥、肢解、明显暴力或虐待场景。
                     3. 禁止恐怖组织、爆炸物、极端主义宣传。
-                    任一条触发即pass=false并列出violations。禁止添加多余文本。
+                    任一条触发即pass=false并列出violations。
                     """;
 
             UserMessage userMessage = UserMessage.builder()
@@ -127,11 +129,20 @@ public class ImageReviewNode implements NodeAction {
             String modelOutput = chatResponse.getResult().getOutput().getText();
 
             return parseReviewResult(modelOutput);
+        } catch (org.springframework.ai.retry.NonTransientAiException ex) {
+            // 处理模型内容审查异常 (如阿里云 1301、OpenAI moderation 等)
+            System.err.println("模型内容审查拒绝: " + imageUrl);
+            System.err.println("原因: " + ex.getMessage());
+            return false; // 直接判定为审核不通过
+
+        } catch (javax.net.ssl.SSLHandshakeException ex) {
+            // 网络连接问题
+            System.err.println("SSL 连接失败: " + imageUrl);
+            return false; // 网络问题也视为审核失败
         } catch (Exception ex) {
-            System.err.println("ImageReviewNode 处理图片失败: " + imageUrl);
-            System.err.println("错误类型: " + ex.getClass().getName());
-            System.err.println("错误信息: " + ex.getMessage());
-            ex.printStackTrace();
+            // 其他异常 (JSON 解析失败、超时等)
+            System.err.println("ImageReviewNode 处理失败: " + imageUrl);
+            System.err.println("错误: " + ex.getClass().getSimpleName() + " - " + ex.getMessage());
             return false;
         }
     }
@@ -140,23 +151,11 @@ public class ImageReviewNode implements NodeAction {
         if (modelOutput == null || modelOutput.isBlank()) {
             return false;
         }
-        String cleanJson = cleanJsonString(modelOutput);
+        String cleanJson = JsonCleanerUtil.cleanJsonString(modelOutput);
         JsonNode root = objectMapper.readTree(cleanJson);
         return root.path("pass").asBoolean(false);
     }
 
-    private String cleanJsonString(String response) {
-        String cleaned = response.trim();
-        if (cleaned.startsWith("```json")) {
-            cleaned = cleaned.substring(7);
-        } else if (cleaned.startsWith("```")) {
-            cleaned = cleaned.substring(3);
-        }
-        if (cleaned.endsWith("```")) {
-            cleaned = cleaned.substring(0, cleaned.length() - 3);
-        }
-        return cleaned.trim();
-    }
 
     private MimeType getMimeTypeFromPath(String path) {
         String lowerPath = path.toLowerCase();
@@ -172,4 +171,6 @@ public class ImageReviewNode implements NodeAction {
             return MimeTypeUtils.IMAGE_JPEG;
         }
     }
+
+
 }
