@@ -1,0 +1,67 @@
+package com.example.springairagdemo1.config;
+
+import com.example.springairagdemo1.service.llm.LlmServiceEnum;
+import lombok.Getter;
+import lombok.Setter;
+import org.springframework.boot.context.properties.ConfigurationProperties;
+import org.springframework.stereotype.Component;
+
+@Getter
+@Setter
+@Component
+@ConfigurationProperties(prefix = "data-agent")
+public class DataAgentProperties {
+    private LlmServiceEnum llmServiceType = LlmServiceEnum.STREAM;
+
+    private EmbeddingBatch embeddingBatch = new EmbeddingBatch();
+
+    private VectorStoreProperties vectorStore = new VectorStoreProperties();
+
+
+    @Getter
+    @Setter
+    public static class EmbeddingBatch {
+
+        /**
+         * encodingType 默认值：cl100k_base，适用于OpenAI等模型
+         */
+        private String encodingType = "cl100k_base";
+
+        /**
+         * 每批次最大令牌数 值越小，每批次文档越少，但更安全 值越大，处理效率越高，但可能超出API限制 建议值：2000-8000，根据实际API限制调整
+         */
+        private int maxTokenCount = 8000;
+
+        /**
+         * 预留百分比 用于预留缓冲空间，避免超出限制 建议值：0.1-0.2（10%-20%）
+         */
+        private double reservePercentage = 0.2;
+
+        /**
+         * 每批次最大文本数量 适用于DashScope等有文本数量限制的API DashScope限制为10
+         */
+        private int maxTextCount = 10;
+
+    }
+
+    @Getter
+    @Setter
+    public static class VectorStoreProperties {
+
+        /**
+         * 相似度阈值配置，用于过滤相似度分数大于等于此阈值的文档
+         */
+        private double similarityThreshold = 0.2;
+
+        /**
+         * 一次删除操作中，最多删除的文档数量
+         */
+        private int batchDelTopkLimit = 5000;
+
+        /**
+         * 查询时返回的最大文档数量
+         */
+        private int topkLimit = 30;
+
+    }
+}
