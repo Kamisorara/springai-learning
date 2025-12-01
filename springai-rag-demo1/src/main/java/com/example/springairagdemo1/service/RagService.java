@@ -6,6 +6,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.document.Document;
 import org.springframework.ai.reader.JsonReader;
+import org.springframework.ai.tool.ToolCallbackProvider;
 import org.springframework.core.io.Resource;
 import org.springframework.core.io.ResourceLoader;
 import org.springframework.stereotype.Service;
@@ -30,6 +31,7 @@ public class RagService {
     private final AgentVectorStoreService vectorStoreService;
     private final LlmService llmService;
     private final ResourceLoader resourceLoader;
+    private final ToolCallbackProvider tools;
 
     /**
      * 从文本文件加载文档到向量存储
@@ -226,15 +228,16 @@ public class RagService {
 
             // 3. 构建增强提示
             String enhancedPrompt = String.format(
-                    "基于以下上下文信息回答问题。如果上下文中没有相关信息，请诚实地说明。\n\n" +
-                    "上下文信息：\n%s\n\n" +
-                    "问题：%s\n\n" +
-                    "请基于上述上下文提供详细、准确的回答：",
+                    "请基于以下上下文信息简要回答问题。如果上下文中没有相关信息，请直接说明。\n\n" +
+                            "上下文信息：\n%s\n\n" +
+                            "问题：%s\n\n" +
+                            "请基于上述上下文提供简洁准确的回答：",
                     context, question
             );
 
             // 4. 调用LLM生成回答
-            String answer = llmService.generateText(enhancedPrompt);
+//            String answer = llmService.generateText(enhancedPrompt);
+            String answer = llmService.generateTextWithTools(enhancedPrompt, tools);
 
             log.info("RAG问答完成，问题: {}, 检索文档数: {}, 回答长度: {}",
                     question, relevantDocs.size(), answer.length());
