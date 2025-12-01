@@ -25,40 +25,60 @@ public class OpenAiCompatibilityConfig {
 
     private static final Pattern VERSION_PATTERN = Pattern.compile("^v\\d+$");
 
-    private static String removeTargetV1Segment(String path) {
+    private static String removeSpringAiAddedV1(String path) {
         if (path == null || path.isEmpty()) {
             return path;
         }
-        String[] segs = path.split("/", -1); // 保留空段
-        List<String> parts = new ArrayList<>(Arrays.asList(segs));
-        // 找到第一个非空段索引
-        int firstNonEmpty = -1;
-        for (int i = 0; i < parts.size(); i++) {
-            if (!parts.get(i).isEmpty()) {
-                firstNonEmpty = i;
-                break;
-            }
+
+        // 处理 DashScope: /compatible-mode/v1/v1/* -> /compatible-mode/v1/*
+        if (path.contains("/compatible-mode/v1/v1/")) {
+            return path.replaceFirst("/compatible-mode/v1/v1/", "/compatible-mode/v1/");
         }
-        for (int i = 0; i < parts.size(); i++) {
-            if ("v1".equals(parts.get(i))) {
-                boolean isLeading = (i == firstNonEmpty);
-                boolean followsVersion = (i > firstNonEmpty && VERSION_PATTERN.matcher(parts.get(i - 1)).matches());
-                if (isLeading || followsVersion) {
-                    parts.remove(i);
-                }
-                break; // 只移除第一个匹配的 v1
-            }
+
+        // 处理 BigModel: /api/paas/v4/v1/* -> /api/paas/v4/*
+        if (path.contains("/api/paas/v4/v1/")) {
+            return path.replaceFirst("/api/paas/v4/v1/", "/api/paas/v4/");
         }
-        // 重新拼接，保留开头的斜杠（split 带来的空段）
-        return String.join("/", parts);
+
+        // 通用情况：如果路径中已经包含版本号（v1、v4等），Spring AI又添加了/v1，则移除Spring AI添加的/v1
+        String[] segments = path.split("/");
+        List<String> result = new ArrayList<>();
+        boolean skipNextV1 = false;
+
+        for (int i = 0; i < segments.length; i++) {
+            String segment = segments[i];
+
+            if (segment.isEmpty()) {
+                // 保留开头的空段（保持路径的斜杠）
+                result.add(segment);
+                continue;
+            }
+
+            // 检查前一个段是否是版本号模式
+            String prevSegment = i > 0 ? segments[i - 1] : "";
+            boolean prevIsVersion = Pattern.matches("^v\\d+$", prevSegment) ||
+                                   prevSegment.equals("compatible-mode") ||
+                                   prevSegment.equals("paas");
+
+            // 如果当前段是v1，且前一个段是版本号或特定路径，则跳过这个v1
+            if ("v1".equals(segment) && prevIsVersion) {
+                skipNextV1 = true;
+                continue;
+            }
+
+            result.add(segment);
+        }
+
+        return String.join("/", result);
     }
+
 
     @Bean
     public RestClientCustomizer restClientCustomizer() {
         return restClientBuilder -> restClientBuilder.requestInterceptor((request, body, execution) -> {
             URI uri = request.getURI();
             String path = uri.getPath();
-            String newPath = removeTargetV1Segment(path);
+            String newPath = removeSpringAiAddedV1(path);
             if (!newPath.equals(path)) {
                 try {
                     URI newUri = new URI(
@@ -87,7 +107,7 @@ public class OpenAiCompatibilityConfig {
         return builder -> builder.filter((request, next) -> {
             URI uri = request.url();
             String path = uri.getPath();
-            String newPath = removeTargetV1Segment(path);
+            String newPath = removeSpringAiAddedV1(path);
             if (!newPath.equals(path)) {
                 try {
                     URI newUri = new URI(
