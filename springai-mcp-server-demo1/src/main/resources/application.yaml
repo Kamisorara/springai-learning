@@ -8,5 +8,20 @@ spring:
         name: time-tool
         type: async
 
+# 启用actuator端点
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      show-details: always
+
 server:
   port: 8001
+
+logging:
+  level:
+    org.springframework.ai: DEBUG
+    com.example.springaimcpserverdemo1: DEBUG

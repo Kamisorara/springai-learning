@@ -7,7 +7,7 @@ import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 
 /**
- * 时间工具
+ * 时间工具 - MCP工具
  */
 @Component
 public class TimeTool {

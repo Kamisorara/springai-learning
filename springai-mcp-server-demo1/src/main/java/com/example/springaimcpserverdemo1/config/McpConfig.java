@@ -1,5 +1,6 @@
 package com.example.springaimcpserverdemo1.config;
 
+
 import com.example.springaimcpserverdemo1.tool.TimeTool;
 import org.springframework.ai.tool.ToolCallbackProvider;
 import org.springframework.ai.tool.method.MethodToolCallbackProvider;
