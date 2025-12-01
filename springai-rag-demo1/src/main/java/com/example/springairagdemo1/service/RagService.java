@@ -210,7 +210,7 @@ public class RagService {
     public String ragQuestionAnswering(String question) {
         try {
             // 1. 从向量存储中检索相关文档
-            List<Document> relevantDocs = vectorStoreService.similaritySearch(question, 5, 0.3);
+            List<Document> relevantDocs = vectorStoreService.similaritySearch(question, 5, 0.7);
 
             if (relevantDocs.isEmpty()) {
                 return "抱歉，我在知识库中没有找到与您问题相关的信息。";
@@ -295,7 +295,7 @@ public class RagService {
      */
     public List<Document> searchRelevantDocuments(String query, int topK) {
         try {
-            return vectorStoreService.similaritySearch(query, topK, 0.2);
+            return vectorStoreService.similaritySearch(query, topK, 0.8);
         } catch (Exception e) {
             log.error("搜索相关文档失败，查询: {}", query, e);
             throw new RuntimeException("搜索相关文档失败", e);
