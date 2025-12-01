@@ -49,6 +49,13 @@ public class DataAgentProperties {
     public static class VectorStoreProperties {
 
         /**
+         * 向量维度配置，必须与embedding模型输出的维度一致
+         * embedding-2: 1024维
+         * embedding-3: 2048维
+         */
+        private int embeddingDimension = 2048;
+
+        /**
          * 相似度阈值配置，用于过滤相似度分数大于等于此阈值的文档
          */
         private double similarityThreshold = 0.2;

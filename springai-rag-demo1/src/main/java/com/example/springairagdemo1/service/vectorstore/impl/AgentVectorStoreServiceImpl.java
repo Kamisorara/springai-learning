@@ -32,10 +32,34 @@ public class AgentVectorStoreServiceImpl implements AgentVectorStoreService {
     @Override
     public void addDocument(Document document) {
         try {
+            // 添加详细的文档信息日志
+            log.info("准备添加文档到向量存储，文档ID: {}, 内容长度: {}, 元数据: {}",
+                    document.getId(),
+                    document.getText() != null ? document.getText().length() : 0,
+                    document.getMetadata());
+
+            // 验证文档内容
+            if (document.getText() == null || document.getText().trim().isEmpty()) {
+                log.warn("文档内容为空，文档ID: {}", document.getId());
+            }
+
             vectorStore.add(List.of(document));
-            log.info("成功添加文档到向量存储，文档ID: {}", document.getId());
-        } catch (Exception e) {
-            log.error("添加文档到向量存储失败，文档ID: {}", document.getId(), e);
+            log.info("成功添加文档到向量存储，文档ID: {}, 向量维度配置: {}",
+                    document.getId(),
+                    dataAgentProperties.getVectorStore().getEmbeddingDimension());
+        } catch (io.milvus.exception.ParamException e) {
+            log.error("Milvus参数错误，文档ID: {}, 错误信息: {}, 可能原因：向量维度不匹配，当前配置维度: {}",
+                    document.getId(),
+                    e.getMessage(),
+                    dataAgentProperties.getVectorStore().getEmbeddingDimension(), e);
+            throw new RuntimeException("向量维度配置错误，请检查embedding模型和Milvus配置", e);
+        }  catch (Exception e) {
+            log.error("添加文档到向量存储失败，文档ID: {}, 错误类型: {}, 错误信息: {}, 配置信息: embeddingModel={}, embeddingDimension={}",
+                    document.getId(),
+                    e.getClass().getSimpleName(),
+                    e.getMessage(),
+                    "embedding-3",
+                    dataAgentProperties.getVectorStore().getEmbeddingDimension(), e);
             throw new RuntimeException("向量存储添加失败", e);
         }
     }
