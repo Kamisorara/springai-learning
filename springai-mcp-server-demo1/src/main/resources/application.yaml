@@ -1,0 +1,12 @@
+spring:
+  application:
+    name: springai-mcp-server-demo1
+
+  ai:
+    mcp:
+      server:
+        name: time-tool
+        type: async
+
+server:
+  port: 8001

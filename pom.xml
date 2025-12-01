@@ -22,6 +22,7 @@
         <module>springai-graph-demo2</module>
         <module>springai-graph-demo3</module>
         <module>springai-rag-demo1</module>
+        <module>springai-mcp-server-demo1</module>
     </modules>
 
     <properties>
