@@ -2,17 +2,36 @@ spring:
   application:
     name: springai-rag-demo1
   ai:
+    # LLM??
     openai:
-      api-key: ${OPENAI_API_KEY:your_api_key_here}
+      api-key: ${OPENAI_API_KEY:}
       base-url: https://open.bigmodel.cn/api/paas/v4
       chat:
         options:
           model: GLM-4.5V
-#  ai:
-#    openai:
-#      api-key: ${OPENAI_API_KEY:your_api_key_here}
-#      base-url: https://dashscope.aliyuncs.com/compatible-mode/v1
-#      chat:
-#        options:
+      # Embedding????
+      embedding:
+        api-key: ${OPENAI_API_KEY:}
+        base-url: https://open.bigmodel.cn/api/paas/v4
+        options:
+          model: embedding-2
+    # ???????
+    vectorstore:
+      milvus:
+        initialize-schema: true
+        client:
+          host: ${MILVUS_HOST:127.0.0.1}
+          port: ${MILVUS_PORT:19530}
+          username: ${MILVUS_USERNAME:waylon}
+          password: ${MILVUS_PASSWORD:123456}
+        databaseName: ${MILVUS_DATABASE:default}
+        collectionName: ${MILVUS_COLLECTION:vector_store}
+        embeddingDimension: 1536
+        indexType: IVF_FLAT
+        metricType: COSINE
+        id-field-name:
+        content-field-name:
+        metadata-field-name:
+        embedding-field-name:
 server:
   port: 8080
