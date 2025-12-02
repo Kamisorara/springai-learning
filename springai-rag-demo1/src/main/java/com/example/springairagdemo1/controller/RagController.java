@@ -9,6 +9,7 @@ import org.springframework.ai.tool.ToolCallbackProvider;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
+import reactor.core.publisher.Flux;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -59,6 +60,19 @@ public class RagController {
                     "error", "处理问题时发生错误: " + e.getMessage()
             ));
         }
+    }
+
+    /**
+     * RAG回答流式返回
+     */
+    @PostMapping("/ask/stream")
+    public Flux<String> askQuestionStream(@RequestBody Map<String, String> request) {
+        String question = request.get("question");
+        if (question == null || question.trim().isEmpty()) {
+            return Flux.just("错误：问题不能为空");
+        }
+
+        return ragService.ragQuestionAnsweringStream(question);
     }
 
     /**

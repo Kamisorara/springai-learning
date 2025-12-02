@@ -10,6 +10,7 @@ import org.springframework.ai.tool.ToolCallbackProvider;
 import org.springframework.core.io.Resource;
 import org.springframework.core.io.ResourceLoader;
 import org.springframework.stereotype.Service;
+import reactor.core.publisher.Flux;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -248,6 +249,56 @@ public class RagService {
             log.error("RAG问答失败，问题: {}", question, e);
             return "抱歉，处理您的问题时遇到了错误，请稍后重试。";
         }
+    }
+
+    /**
+     * 检索增强生成问答（流式输出）
+     */
+    public Flux<String> ragQuestionAnsweringStream(String question) {
+        return Flux.create(sink -> {
+            try {
+                // 1. 从向量存储中检索相关文档
+                List<Document> relevantDocs = vectorStoreService.similaritySearch(question, 5, 0.7);
+
+                if (relevantDocs.isEmpty()) {
+                    sink.next("抱歉，我在知识库中没有找到与您问题相关的信息。");
+                    sink.complete();
+                    return;
+                }
+
+                // 2. 构建上下文
+                String context = relevantDocs.stream()
+                        .map(doc -> String.format("[来源: %s]\n%s",
+                                doc.getMetadata().get("source"),
+                                doc.getText()))
+                        .reduce((a, b) -> a + "\n\n" + b)
+                        .orElse("");
+
+                // 3. 构建增强提示
+                String enhancedPrompt = String.format(
+                        "请基于以下上下文信息简要回答问题。如果上下文中没有相关信息，请直接说明。\n\n" +
+                                "上下文信息：\n%s\n\n" +
+                                "问题：%s\n\n" +
+                                "请基于上述上下文提供简洁准确的回答：",
+                        context, question
+                );
+
+                // 4. 调用LLM生成回答（流式输出）
+                llmService.generateTextWithToolsStream(enhancedPrompt, tools)
+                        .subscribe(
+                                chunk -> sink.next(chunk),
+                                error -> {
+                                    log.error("RAG问答流式处理失败，问题: {}", question, error);
+                                    sink.error(new RuntimeException("处理您的问题时遇到了错误，请稍后重试。", error));
+                                },
+                                () -> sink.complete()
+                        );
+
+            } catch (Exception e) {
+                log.error("RAG问答流式处理失败，问题: {}", question, e);
+                sink.error(new RuntimeException("处理您的问题时遇到了错误，请稍后重试。", e));
+            }
+        });
     }
 
     /**

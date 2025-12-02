@@ -4,6 +4,7 @@ import com.example.springairagdemo1.util.ChatResponseUtil;
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.ai.chat.model.ChatResponse;
 import org.springframework.ai.tool.ToolCallbackProvider;
+import reactor.core.CorePublisher;
 import reactor.core.publisher.Flux;
 
 public interface LlmService {
@@ -43,6 +44,13 @@ public interface LlmService {
 
     default Flux<String> toStringFlux(Flux<ChatResponse> responseFlux) {
         return responseFlux.map(ChatResponseUtil::getText);
+    }
+
+    @Deprecated
+    default String blockToString(Flux<ChatResponse> responseFlux) {
+        return toStringFlux(responseFlux).collect(StringBuilder::new, StringBuilder::append)
+                .map(StringBuilder::toString)
+                .block();
     }
 
     /**
@@ -95,5 +103,15 @@ public interface LlmService {
         return toStringFlux(callUserWithTools(user, tools)).collectList().block()
                 .stream()
                 .reduce("", (a, b) -> a + b);
+    }
+
+    /**
+     * 生成文本响应流（带工具调用）
+     * @param enhancedPrompt
+     * @param tools
+     * @return
+     */
+    default Flux<String> generateTextWithToolsStream(String enhancedPrompt, ToolCallbackProvider tools) {
+        return toStringFlux(callUserWithTools(enhancedPrompt, tools));
     }
 }
